@@ -1,0 +1,189 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Por hacer{% endblock %}
+
+{% block content %}
+  <div id="app" class="container">
+
+    <br/>
+
+    <h1 class="text-center" style="color: white;">Tareas por hacer</h1>
+
+    <br/>
+
+    <div v-if="!tareas.length" class="text-center">
+      No se encontraron registros
+      <br/>
+      <br/>
+    </div>
+    <div v-if="tareas.length">
+      <div style="height:700px; overflow:auto;">
+        <table class="table">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Titulo</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="tarea in tareas" :key="tarea.id">
+                    <td>[[tarea.titulo]]</td>
+                    <td>
+                      <a href="#modalDatos" class="btn btn-primary" data-bs-toggle="modal" @click="editarTarea([[tarea.id]])">Editar</a>
+                      <a class="btn btn-danger" style="margin-left: 10px;" @click="borrarTarea([[tarea.id]])">Borrar</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="modalDatos" class="modal fade" tabindex="-1" aria-labelledby="datosModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="datosModalLabel">Datos</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="close"></button>
+          </div>
+          <div class="modal-body">
+            <form>
+              <div class="mb-3">
+                <label for="titulo" class="col-form-label">Titulo:</label>
+                <input type="text" class="form-control" id="titulo" v-model="titulo">
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            <button type="button" class="btn btn-primary" @click="guardarTarea()">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <br/>
+
+    <div class="col-12 text-center">
+      <a href="#modalDatos" class="btn btn-primary" data-bs-toggle="modal" @click="nuevaTarea()">Agregar nueva tarea</a>
+      <a href="#" class="btn btn-secondary" style="margin-left: 10px;" @click="enviarTareas()">Enviar tareas por Telegram</a>
+    </div>
+
+  </div>
+
+  <script>
+
+    var url_api = "http://localhost:9999";
+
+    const app = Vue.createApp({
+      delimiters: ["[[", "]]"],
+      data() {
+        return {
+            tareas: [],
+            id: "",
+            titulo: "",
+            editando: 0,
+        }
+      },
+      mounted: function() {
+        this.listarTareas();
+      },
+      computed: {},
+      methods: {
+        listarTareas: function() {
+          axios
+          .get(url_api + "/api/tareas")
+          .then(response => {
+            this.tareas = response.data
+          })
+          .catch(function (error) {
+            console.log(error);
+          })
+        },
+        nuevaTarea: function() {
+          this.editando = 0;
+          this.titulo = "";
+        },
+        editarTarea: function(id_tarea) {
+          this.editando = 1;
+          this.id = id_tarea;
+          axios
+          .get(url_api + "/api/tareas/" + id_tarea + "/")
+          .then(response => {
+            var datos = response.data;
+            this.titulo = datos.titulo;
+          })
+          .catch(function (error) {
+            console.log(error);
+          })
+        },
+        guardarTarea: function() {
+          if(this.editando == 0) {
+            axios
+            .post(url_api + "/api/tareas",{"titulo":this.titulo,"estado":1})
+            .then(response => {
+              var datos = response.data;
+              document.getElementById('close').click();
+              this.listarTareas();
+              toastr.success("La tarea fue guardada");
+            })
+            .catch(function (error) {
+              console.log(error);
+            })
+          } else {
+            axios
+            .put(url_api + "/api/tareas/" + this.id + "/",{"titulo":this.titulo,"estado":1})
+            .then(response => {
+              var datos = response.data;
+              document.getElementById('close').click();
+              this.listarTareas();
+              toastr.success("La tarea fue actualizada");
+            })
+            .catch(function (error) {
+              console.log(error);
+            })
+          }
+        },
+        borrarTarea: function(id) {
+          Swal.fire({
+          title: "Desea borrar la tarea ?",
+          showDenyButton: true,
+          confirmButtonText: "Borrar",
+          denyButtonText: "Cancelar",
+          }).then((result) => {
+            if (result.isConfirmed) {
+              axios
+              .delete(url_api + "/api/tareas/" + id + "/")
+              .then(response => {
+                var datos = response.data;
+                this.listarTareas();
+                toastr.success("La tarea fue borrada");
+              })
+              .catch(function (error) {
+                console.log(error);
+              })
+            }
+          })
+        },
+        enviarTareas: function() {
+          axios
+            .post(url_api + "/api/tareas/enviar",{})
+            .then(response => {
+              var datos = response.data;
+              toastr.success("Las tarea fueron enviadas");
+            })
+            .catch(function (error) {
+              console.log(error);
+            })
+        }
+      },
+    });
+
+    app.mount("#app");
+
+    $(function() {
+      $(".modal").modal();
+    });
+
+  </script>
+{% endblock %}
+
